@@ -1,5 +1,5 @@
 (ns cliff.parser
-  (:require [cliff.types :as types]
+  (:require [cliff.built-in :as built-in]
             [clojure.string :as string]))
 
 (defmulti tokenize :token-type)
@@ -38,6 +38,12 @@
          :current-token (first parsing-tokens)
          :parsing-tokens (next parsing-tokens)))
 
+(defn- next-value [{:keys [parsing-tokens args] :as context} attributes]
+  (cond
+    (built-in/boolean? attributes) context
+    (seq parsing-tokens)      (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
+    :else                     (assoc context :current-value (first args) :args (next args))))
+
 (defn- printable-token-type [token-type]
   (string/replace (name token-type) #"-" " "))
 
@@ -49,22 +55,16 @@
   {:status  :error
    :message (format "Unparseable value: %s for %s '%s' in %s." value (printable-token-type token-type) current-token raw-token)})
 
-(defn- next-value [{:keys [parsing-tokens args] :as context} typedef]
-  (cond
-    (types/boollean? typedef) context
-    (seq parsing-tokens)      (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
-    :else                     (assoc context :current-value (first args) :args (next args))))
-
-(defn- parse-value [{:keys [current-value] :as context} {:keys [name] :as typedef}]
+(defn- parse-value [{:keys [current-value] :as context} {:keys [name] :as attributes}]
   (try
-    (assoc-in context [:result name] (types/parse-value typedef current-value))
+    (assoc-in context [:result name] (built-in/parse-value attributes current-value))
     (catch Exception e
       (unparseable-value context current-value))))
 
 (defn- parse-flag [{:keys [current-token long-flags shorthand-flags] :as context}]
-  (if-let [typedef (get long-flags current-token
+  (if-let [attributes (get long-flags current-token
                         (get shorthand-flags current-token))]
-    (parse-value (next-value context typedef) typedef)
+    (parse-value (next-value context attributes) attributes)
     (unknown-token context)))
 
 (defn- parse-shorthand-flags [context]
@@ -77,8 +77,8 @@
 
 (defn- parse-positional-argument [{:keys [current-arg-position current-token] :as context
                                    :or   {current-arg-position 0}}]
-  (if-let [typedef (get-in context [:arguments current-arg-position])]
-    (update (parse-value (assoc context :current-value current-token) typedef)
+  (if-let [attributes (get-in context [:arguments current-arg-position])]
+    (update (parse-value (assoc context :current-value current-token) attributes)
             :current-arg-position (fnil inc 0))
     (unknown-token context)))
 
@@ -88,7 +88,7 @@
     :long-flag      (parse-flag context)
     :argument       (parse-positional-argument context)))
 
-(def shorthand-flag? (partial re-find #"^-[^-]+"))
+(def shorthand-flag? (partial re-find #"^-[^\-]+"))
 
 (def long-flag? #(string/starts-with? % "--"))
 
