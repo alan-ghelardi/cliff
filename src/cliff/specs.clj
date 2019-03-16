@@ -23,6 +23,8 @@
                                      (= 1 (count %)))
                      (constantly shorthand-gen)))
 
+(s/def ::required? boolean)
+
 (s/def ::default any?)
 
 (s/def ::list? boolean?)
@@ -30,10 +32,10 @@
 (s/def ::values (s/coll-of any? :kind set? :min-count 1))
 
 (s/def ::argument (s/keys :req-un [::name ::type]
-                          :opt-un [::desc ::default ::values]))
+                          :opt-un [::desc ::required? ::default ::values]))
 
 (s/def flag (s/keys :req-un [::type]
-                    :opt-un [::desc ::shorthand ::default ::list? ::values]))
+                    :opt-un [::desc ::required? ::shorthand ::default ::list? ::values]))
 
 (s/def ::arguments (s/coll-of ::argument :kind vector?))
 

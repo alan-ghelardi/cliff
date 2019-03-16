@@ -1,11 +1,17 @@
 (ns cliff.printer
   (:require [clojure.string :as string]))
 
-(defn printable-argument [arg-type arg]
-  (case arg-type
-    :argument       arg
-    :long-flag      (str "--" arg)
-    :shorthand-flag (str "-" arg)))
+(defn keyword->arg-str [key]
+  (->> key
+       name
+       (re-find #"^([^\?]+)\??$")
+       last))
+
+(defn argument [argkey]
+  (keyword->arg-str argkey))
+
+(defn long-flag [flag-key]
+  (str "--" (keyword->arg-str flag-key)))
 
 (defn sentence [words]
   (if (= 1 (count words))

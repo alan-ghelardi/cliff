@@ -19,15 +19,15 @@
   (error :unknown-token (str "Unknown " (printable-token context))))
 
 (defn- unparseable-value [{:keys [current-value] :as context}]
-  (error :unparseable-value (format "Unparseable value %s for %s" current-value (printable-token context))))
+  (error :unparseable-value (format "Unparseable value '%s' for %s" current-value (printable-token context))))
 
 (defn- check-missing-arguments [{:keys [arguments long-flags result] :as context}]
-  (let [find-missing-values (fn [arg-type errors [arg {:keys [name required?]}]]
-                              (if-not (and required? (get result name))
-                                (conj errors (printer/printable-argument arg-type arg))
+  (let [find-missing-values (fn [str-fn errors [_ {:keys [name required?]}]]
+                              (if (and required? (not (get result name)))
+                                (conj errors (str-fn name))
                                 errors))
-        errors              (into (reduce (partial find-missing-values :long-flag) [] long-flags)
-                                  (reduce (partial find-missing-values :argument) [] arguments))]
+        errors              (into (reduce (partial find-missing-values printer/long-flag) [] long-flags)
+                                  (reduce (partial find-missing-values printer/argument) [] arguments))]
     (if (seq errors)
       (error :missing-required-arguments (str "The following required arguments are missing: " (printer/sentence errors)))
       context)))
@@ -133,12 +133,6 @@
       context
       (recur (parse-next-arg context)))))
 
-(defn- keyword->long-flag [key]
-  (->> key
-       name
-       (re-find #"^([^\?]+)\??$")
-       last))
-
 (defn parser-context [{:keys [arguments flags]} args]
   (letfn [(get-arguments []
             (->> arguments
@@ -147,7 +141,7 @@
           (get-flags []
                      (->> flags
                           (map (fn [[name {:keys [shorthand] :as flag}]]
-                                 [(keyword->long-flag name) shorthand (assoc flag :name name)]))
+                                 [(printer/keyword->arg-str name) shorthand (assoc flag :name name)]))
                           (reduce (fn [result [long-flag shorthand-flag flag-attrs]]
                                     (-> result
                                         (assoc-in [:long-flags long-flag] flag-attrs)
@@ -160,7 +154,9 @@
 (defn parse [program args]
   (let [context                     (parser-context program args)
         {:keys [status] :as output} (parse-args context)]
-    (-> output
-#_        check-missing-arguments
-        (cond-> (nil? status) (assoc :status :ok))
-        (select-keys [:status :reason :message :result]))))
+    (if (= :error status)
+      output
+      (-> output
+          (assoc :status :ok)
+          check-missing-arguments
+          (select-keys [:status :reason :message :result])))))

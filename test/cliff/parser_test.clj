@@ -12,14 +12,20 @@
                      :width         {:shorthand "w"
                                      :type      :int}}})
 
-(def cp {:arguments [{:name :source
-                      :type :string
+(def cp {:arguments [{:name      :source
+                      :type      :string
                       :required? true}
-                     {:name :target
-                      :type :string
+                     {:name      :target
+                      :type      :string
                       :required? true}]
-         :flags {:recursive? {:type :boolean
-                              :shorthand "r"}}})
+         :flags     {:recursive? {:type      :boolean
+                                  :shorthand "r"}}})
+
+(def get-role-policy {:flags {:role-name   {:type      :string
+                                            :required? true}
+                              :policy-name {:type      :string
+                                            :required? true}}})
+
 (deftest parse-test
   (testing "parses the supplied shorthand flags"
     (is (match? {:status :ok
@@ -114,6 +120,17 @@
     (are [program args reason message] (match? {:status :error
                                                 :reason reason
                                                 :message message} (parser/parse program args))
-      ls ["-lt"] :unknown-token "Unknown shorthand flag 'l' in -lt"
-      ls ["-at" "--sort-by-name" "."] :unknown-token "Unknown long flag '--sort-by-name'"
-      cp ["-r" "folder" "../" "foo"] :unknown-token "Unknown argument 'foo'")))
+      ls ["-lt"]                      :unknown-token     "Unknown shorthand flag 'l' in -lt"
+      ls ["-at" "--sort-by-name" "."] :unknown-token     "Unknown long flag '--sort-by-name'"
+      cp ["-r" "folder" "../" "foo"]  :unknown-token     "Unknown argument 'foo'"
+      ls ["-w" "hello"]               :unparseable-value "Unparseable value 'hello' for shorthand flag 'w' in -w"))
+
+  (testing "returns an error when required arguments are missing"
+    (are [program args message] (match? {:status :error
+                                         :reason :missing-required-arguments
+                                         :message message}
+                                        (parser/parse program args))
+      cp              []                         "The following required arguments are missing: source and target"
+      cp              ["-r" "folder"]            "The following required arguments are missing: target"
+      get-role-policy []                         "The following required arguments are missing: --role-name and --policy-name"
+      get-role-policy ["--role-name" "foo-role"] "The following required arguments are missing: --policy-name")))
