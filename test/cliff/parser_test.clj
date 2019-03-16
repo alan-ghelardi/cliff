@@ -12,6 +12,14 @@
                      :width         {:shorthand "w"
                                      :type      :int}}})
 
+(def cp {:arguments [{:name :source
+                      :type :string
+                      :required? true}
+                     {:name :target
+                      :type :string
+                      :required? true}]
+         :flags {:recursive? {:type :boolean
+                              :shorthand "r"}}})
 (deftest parse-test
   (testing "parses the supplied shorthand flags"
     (is (match? {:status :ok
@@ -100,4 +108,12 @@
                           :sort-by-time? true
                           :width         15}}
                 (parser/parse ls ["-at" "Documents" "-w" "15"]))
-        "the argument between the flags")))
+        "the argument between the flags"))
+
+  (testing "detects and returns parsing errors"
+    (are [program args reason message] (match? {:status :error
+                                                :reason reason
+                                                :message message} (parser/parse program args))
+      ls ["-lt"] :unknown-token "Unknown shorthand flag 'l' in -lt"
+      ls ["-at" "--sort-by-name" "."] :unknown-token "Unknown long flag '--sort-by-name'"
+      cp ["-r" "folder" "../" "foo"] :unknown-token "Unknown argument 'foo'")))

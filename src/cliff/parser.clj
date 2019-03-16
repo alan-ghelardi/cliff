@@ -1,6 +1,36 @@
 (ns cliff.parser
   (:require [cliff.built-in :as built-in]
+            [cliff.printer :as printer]
             [clojure.string :as string]))
+
+(defn- error [reason message]
+  {:status  :error
+   :reason  reason
+   :message message})
+
+(defn- printable-token [{:keys [current-token raw-token token-type]}]
+  (apply str (flatten [(string/replace (name token-type) #"-" " ")
+                       " "
+                       "'" (or current-token raw-token) "'"
+                       (when (= :shorthand-flag token-type)
+                         [" in " raw-token])])))
+
+(defn- unknown-token [context]
+  (error :unknown-token (str "Unknown " (printable-token context))))
+
+(defn- unparseable-value [{:keys [current-value] :as context}]
+  (error :unparseable-value (format "Unparseable value %s for %s" current-value (printable-token context))))
+
+(defn- check-missing-arguments [{:keys [arguments long-flags result] :as context}]
+  (let [find-missing-values (fn [arg-type errors [arg {:keys [name required?]}]]
+                              (if-not (and required? (get result name))
+                                (conj errors (printer/printable-argument arg-type arg))
+                                errors))
+        errors              (into (reduce (partial find-missing-values :long-flag) [] long-flags)
+                                  (reduce (partial find-missing-values :argument) [] arguments))]
+    (if (seq errors)
+      (error :missing-required-arguments (str "The following required arguments are missing: " (printer/sentence errors)))
+      context)))
 
 (defmulti tokenize :token-type)
 
@@ -41,29 +71,18 @@
 (defn- next-value [{:keys [parsing-tokens args] :as context} attributes]
   (cond
     (built-in/boolean? attributes) context
-    (seq parsing-tokens)      (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
-    :else                     (assoc context :current-value (first args) :args (next args))))
-
-(defn- printable-token-type [token-type]
-  (string/replace (name token-type) #"-" " "))
-
-(defn- unknown-token [{:keys [current-token raw-token token-type]}]
-  {:status  :error
-   :message (format "Unknown %s: '%s' in %s." (printable-token-type token-type) current-token raw-token)})
-
-(defn- unparseable-value [{:keys [current-token raw-token token-type]} value]
-  {:status  :error
-   :message (format "Unparseable value: %s for %s '%s' in %s." value (printable-token-type token-type) current-token raw-token)})
+    (seq parsing-tokens)           (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
+    :else                          (assoc context :current-value (first args) :args (next args))))
 
 (defn- parse-value [{:keys [current-value] :as context} {:keys [name] :as attributes}]
   (try
     (assoc-in context [:result name] (built-in/parse-value attributes current-value))
     (catch Exception e
-      (unparseable-value context current-value))))
+      (unparseable-value context))))
 
 (defn- parse-flag [{:keys [current-token long-flags shorthand-flags] :as context}]
   (if-let [attributes (get long-flags current-token
-                        (get shorthand-flags current-token))]
+                           (get shorthand-flags current-token))]
     (parse-value (next-value context attributes) attributes)
     (unknown-token context)))
 
@@ -142,5 +161,6 @@
   (let [context                     (parser-context program args)
         {:keys [status] :as output} (parse-args context)]
     (-> output
+#_        check-missing-arguments
         (cond-> (nil? status) (assoc :status :ok))
-        (select-keys [:status :message :result]))))
+        (select-keys [:status :reason :message :result]))))
