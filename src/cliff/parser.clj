@@ -21,6 +21,13 @@
 (defn- unparseable-value [{:keys [current-value] :as context}]
   (error :unparseable-value (format "Unparseable value '%s' for %s" current-value (printable-token context))))
 
+(defn- apply-defaults [{:keys [arguments long-flags] :as context}]
+  (reduce (fn [context [_ {:keys [name default]}]]
+            (if (and default (nil? (get-in context [:result name])))
+              (assoc-in context [:result name] default)
+              context))
+          context (merge arguments long-flags)))
+
 (defn- check-missing-arguments [{:keys [arguments long-flags result] :as context}]
   (let [find-missing-values (fn [str-fn errors [_ {:keys [name required?]}]]
                               (if (and required? (not (get result name)))
@@ -158,5 +165,6 @@
       output
       (-> output
           (assoc :status :ok)
+          apply-defaults
           check-missing-arguments
           (select-keys [:status :reason :message :result])))))

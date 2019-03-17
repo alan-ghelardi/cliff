@@ -3,14 +3,16 @@
             [clojure.test :refer :all]
             [matcher-combinators.test]))
 
-(def ls {:arguments [{:name :file-name
-                      :type :string}]
+(def ls {:arguments [{:name    :file-name
+                      :type    :string
+                      :default "."}]
          :flags     {:all?          {:shorthand "a"
                                      :type      :boolean}
                      :sort-by-time? {:shorthand "t"
                                      :type      :boolean}
                      :width         {:shorthand "w"
-                                     :type      :int}}})
+                                     :type      :int
+                                     :default   0}}})
 
 (def cp {:arguments [{:name      :source
                       :type      :string
@@ -70,7 +72,7 @@
                  :result {:all? true :width 0}}
                 (parser/parse ls ["-a" "--width=0"]))))
 
-  (testing "combines multiple shorthand flags together"
+  (testing "shorthand flags can be grouped together"
     (is (match? {:status :ok
                  :result {:all? true :sort-by-time? true}}
                 (parser/parse ls ["-at"]))))
@@ -124,6 +126,15 @@
       ls ["-at" "--sort-by-name" "."] :unknown-token     "Unknown long flag '--sort-by-name'"
       cp ["-r" "folder" "../" "foo"]  :unknown-token     "Unknown argument 'foo'"
       ls ["-w" "hello"]               :unparseable-value "Unparseable value 'hello' for shorthand flag 'w' in -w"))
+
+  (testing "default values for arguments and flags"
+    (are [args result] (match? {:status :ok
+                                :result result}
+                               (parser/parse ls args))
+      []              {:file-name "." :width 0}
+      ["-ta"]         {:file-name "." :width 0}
+      ["~/Documents"] {:file-name "~/Documents" :width 0}
+      ["-w" "5"]      {:file-name "." :width 5}))
 
   (testing "returns an error when required arguments are missing"
     (are [program args message] (match? {:status :error
