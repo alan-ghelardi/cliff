@@ -81,16 +81,22 @@
     (seq parsing-tokens)           (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
     :else                          (assoc context :current-value (first args) :args (next args))))
 
-(defn- parse-value [{:keys [current-value] :as context} {:keys [name] :as attributes}]
+(defn- parse-arg-value [{:keys [current-value] :as context} attributes]
   (try
-    (assoc-in context [:result name] (built-in/parse-value attributes current-value))
+    (built-in/parse-value attributes current-value)
     (catch Exception e
       (unparseable-value context))))
+
+(defn- assoc-arg-values-as-list [{:keys [args current-value token-type] :as context} {:keys [name]}]
+  )
+
+(defn- assoc-arg-value [{:keys [current-value] :as context} attributes]
+  )
 
 (defn- parse-flag [{:keys [current-token long-flags shorthand-flags] :as context}]
   (if-let [attributes (get long-flags current-token
                            (get shorthand-flags current-token))]
-    (parse-value (next-value context attributes) attributes)
+    (assoc-arg-value (next-value context attributes) attributes)
     (unknown-token context)))
 
 (defn- parse-shorthand-flags [context]
@@ -104,7 +110,7 @@
 (defn- parse-positional-argument [{:keys [current-arg-position current-token] :as context
                                    :or   {current-arg-position 0}}]
   (if-let [attributes (get-in context [:arguments current-arg-position])]
-    (update (parse-value (assoc context :current-value current-token) attributes)
+    (update (assoc-arg-value (assoc context :current-value current-token) attributes)
             :current-arg-position (fnil inc 0))
     (unknown-token context)))
 
