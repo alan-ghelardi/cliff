@@ -81,17 +81,30 @@
     (seq parsing-tokens)           (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
     :else                          (assoc context :current-value (first args) :args (next args))))
 
-(defn- parse-arg-value [{:keys [current-value] :as context} attributes]
+(defn- parse-arg-value [context attributes]
   (try
-    (built-in/parse-value attributes current-value)
+    (update context :current-value #(built-in/parse-value attributes %))
     (catch Exception e
       (unparseable-value context))))
 
-(defn- assoc-arg-values-as-list [{:keys [args current-value token-type] :as context} {:keys [name]}]
-  )
+(defmacro fail-fast-> [context & forms]
+  (let [x            (gensym)
+        let-bindings (reduce (fn [bindings form]
+                               (into bindings `[~x (if (= :error (:status ~x))
+                                                     ~x
+                                                     (-> ~x ~form))]))
+                             [x context] forms)]
+    `(let ~let-bindings
+       ~x)))
 
-(defn- assoc-arg-value [{:keys [current-value] :as context} attributes]
-  )
+(defn- assoc-arg-value [context attributes]
+  (letfn [(assoc-parsed-value [{:keys [current-value] :as context} {:keys [name list?]}]
+            (if list?
+              (update-in context [:result name] (fnil #(conj % current-value) []))
+                (assoc-in context [:result name] current-value)))]
+    (fail-fast-> context
+        (parse-arg-value attributes)
+        (assoc-parsed-value attributes))))
 
 (defn- parse-flag [{:keys [current-token long-flags shorthand-flags] :as context}]
   (if-let [attributes (get long-flags current-token

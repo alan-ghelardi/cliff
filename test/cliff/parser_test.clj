@@ -1,7 +1,29 @@
 (ns cliff.parser-test
+  (:refer-clojure :exclude [sort])
   (:require [cliff.parser :as parser]
             [clojure.test :refer :all]
             [matcher-combinators.test]))
+
+(def cp {:arguments [{:name      :source
+                      :type      :string
+                      :required? true}
+                     {:name      :target
+                      :type      :string
+                      :required? true}]
+         :flags     {:recursive? {:type      :boolean
+                                  :shorthand "r"}}})
+
+(def docker-run {:arguments [{:name :image
+                              :type :string}
+                             {:name :args
+                              :type :string
+                              :list? true}]
+                 :flags {:rm? {:type :boolean}}})
+
+(def get-role-policy {:flags {:role-name   {:type      :string
+                                            :required? true}
+                              :policy-name {:type      :string
+                                            :required? true}}})
 
 (def ls {:arguments [{:name    :file-name
                       :type    :string
@@ -14,19 +36,11 @@
                                      :type      :int
                                      :default   0}}})
 
-(def cp {:arguments [{:name      :source
-                      :type      :string
-                      :required? true}
-                     {:name      :target
-                      :type      :string
-                      :required? true}]
-         :flags     {:recursive? {:type      :boolean
-                                  :shorthand "r"}}})
-
-(def get-role-policy {:flags {:role-name   {:type      :string
-                                            :required? true}
-                              :policy-name {:type      :string
-                                            :required? true}}})
+(def sort {:arguments [{:name :file-name
+                        :type :string}]
+           :flags                       {:key-def {:shorthand "k"
+                                                   :type      :string
+                                                   :list?     true}}})
 
 (deftest parse-test
   (testing "parses the supplied shorthand flags"
@@ -87,6 +101,15 @@
     (is (match? {:status :ok
                  :result {:all? true :sort-by-time? true :width 10}}
                 (parser/parse ls ["-atw=10"]))))
+
+  (testing "repeats a flag declared as a list"
+    (are [args key-def] (match? {:status :ok
+                                 :result {:file-name "customers.txt"
+                                          :key-def key-def}} (parser/parse sort args))
+      ["-k" "2,2" "-k" "1,1" "customers.txt"] ["2,2" "1,1"]
+      ["-k" "1" "customers.txt"] ["1"]
+      ["--key-def" "1" "customers.txt"] ["1"]
+      ["-k" "1,1" "customers.txt" "-k" "2,2"] ["1,1" "2,2"]))
 
   (testing "parses a single positional argument"
     (is (match? {:status :ok

@@ -1,18 +1,20 @@
-(ns cliff.built-in)
+(ns cliff.built-in
+  (:require [clojure.java.io :as io]))
 
-(defmulti parse-value :type)
+(defmulti parse-value (fn [attrs value]
+                        (:type attrs)))
 
-(defmethod parse-value :boolean [_ _]
-  true)
+(def parsers-map
+  {:boolean (constantly true)
+   :double  #(Double/parseDouble %)
+   :int     #(Integer/parseInt %)
+   :file    io/file
+   :keyword keyword
+   :string  identity})
 
-(defmethod parse-value :int [_ value]
-  (Integer/parseInt value))
-
-(defmethod parse-value :keyword [_ value]
-  (keyword value))
-
-(defmethod parse-value :string [_ value]
-  value)
+(defmethod parse-value :default [{:keys [type] :as attrs} value]
+  (when-let [parser (get parsers-map type)]
+    (parser value)))
 
 (defn boolean? [spec]
   (= :boolean (:type spec)))
