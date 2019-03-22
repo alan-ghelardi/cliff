@@ -15,10 +15,10 @@
 
 (def docker-run {:arguments [{:name :image
                               :type :string}
-                             {:name :args
-                              :type :string
+                             {:name  :args
+                              :type  :string
                               :list? true}]
-                 :flags {:rm? {:type :boolean}}})
+                 :flags     {:rm? {:type :boolean}}})
 
 (def get-role-policy {:flags {:role-name   {:type      :string
                                             :required? true}
@@ -30,8 +30,8 @@
                       :default "."}]
          :flags     {:all?          {:shorthand "a"
                                      :type      :boolean}
-                     :color {:type :keyword
-                             :values #{:always :auto :never}}
+                     :color         {:type   :keyword
+                                     :values #{:always :auto :never}}
                      :sort-by-time? {:shorthand "t"
                                      :type      :boolean}
                      :width         {:shorthand "w"
@@ -40,9 +40,9 @@
 
 (def sort {:arguments [{:name :file-name
                         :type :string}]
-           :flags                       {:key-def {:shorthand "k"
-                                                   :type      :string
-                                                   :list?     true}}})
+           :flags     {:key-def {:shorthand "k"
+                                 :type      :string
+                                 :list?     true}}})
 
 (deftest parse-test
   (testing "parses the supplied shorthand flags"
@@ -109,13 +109,13 @@
                                  :result {:file-name "customers.txt"
                                           :key-def key-def}} (parser/parse sort args))
       ["-k" "2,2" "-k" "1,1" "customers.txt"] ["2,2" "1,1"]
-      ["-k" "1" "customers.txt"] ["1"]
-      ["--key-def" "1" "customers.txt"] ["1"]
+      ["-k" "1" "customers.txt"]              ["1"]
+      ["--key-def" "1" "customers.txt"]       ["1"]
       ["-k" "1,1" "customers.txt" "-k" "2,2"] ["1,1" "2,2"]))
 
   (testing "when the key `:values` is set, ensures that the flag in question
     always takes one of the valid values"
-    (is  (match? {:status :error
+    (is  (match? {:status  :error
                   :message "Invalid argument 'none' for long flag 'color'. Valid values are 'always', 'auto' and 'never'."}
                  (parser/parse ls ["--color" "none"]))))
 
@@ -148,6 +148,9 @@
                           :width         15}}
                 (parser/parse ls ["-at" "Documents" "-w" "15"]))
         "the argument between the flags"))
+
+  (testing "parses arguments as lists"
+    )
 
   (testing "detects and returns parsing errors"
     (are [program args reason message] (match? {:status :error

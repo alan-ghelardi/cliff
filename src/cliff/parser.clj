@@ -96,14 +96,14 @@
       (unparseable-value context))))
 
 (defmacro fail-fast-> [context & forms]
-  (let [x            (gensym)
+  (let [c            (gensym)
         let-bindings (reduce (fn [bindings form]
-                               (into bindings `[~x (if (= :error (:status ~x))
-                                                     ~x
-                                                     (-> ~x ~form))]))
-                             [x context] forms)]
+                               (into bindings `[~c (if (= :error (:status ~c))
+                                                     ~c
+                                                     (-> ~c ~form))]))
+                             [c context] forms)]
     `(let ~let-bindings
-       ~x)))
+       ~c)))
 
 (defn- assoc-arg-value [context {:keys [values] :as attributes}]
   (letfn [(assoc-parsed-value [{:keys [current-value] :as context} {:keys [name list?]}]
@@ -180,7 +180,7 @@
                           (reduce (fn [result [long-flag shorthand-flag flag-attrs]]
                                     (-> result
                                         (assoc-in [:long-flags long-flag] flag-attrs)
-                                        (assoc-in [:shorthand-flags shorthand-flag] flag-attrs)))
+                                        (cond-> shorthand-flag                                         (assoc-in [:shorthand-flags shorthand-flag] flag-attrs))))
                                   {})))]
     (assoc (get-flags)
            :arguments (get-arguments)
