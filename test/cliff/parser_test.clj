@@ -115,6 +115,10 @@
 
   (testing "when the key `:values` is set, ensures that the flag in question
     always takes one of the valid values"
+    (is (match? {:status :ok
+                 :result {:file-name "." :color :auto}}
+                (parser/parse ls ["--color" "auto"])))
+
     (is  (match? {:status  :error
                   :message "Invalid argument 'none' for long flag 'color'. Valid values are 'always', 'auto' and 'never'."}
                  (parser/parse ls ["--color" "none"]))))
@@ -150,7 +154,13 @@
         "the argument between the flags"))
 
   (testing "parses arguments as lists"
-    )
+    (are [args result] (match? {:status :ok
+                                :result {:image "bash"
+                                         :args result}}
+                               (parser/parse docker-run args))
+      ["--rm" "bash" "ls"]              ["ls"]
+      ["--rm" "bash" "ls" "-la"]        ["ls" "-la"]
+      ["--rm" "bash" "ls" "-la" "/bin"] ["ls" "-la" "/bin"]))
 
   (testing "detects and returns parsing errors"
     (are [program args reason message] (match? {:status :error
