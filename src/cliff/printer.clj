@@ -13,7 +13,16 @@
 (defn long-flag [flag-key]
   (str "--" (keyword->arg-str flag-key)))
 
-(defn sentence [words]
-  (if (= 1 (count words))
-    (first words)
-    (str (string/join ", " (butlast words)) " and " (last words))))
+(defn sentence
+  ([words] (sentence words {}))
+  ([words options]
+   (let [{:keys [sort? quote?]} options
+         string #(if (keyword? %)
+                   (name %)
+                   (str %))
+         words                 (-> (map string words)
+                                   (cond->> sort? sort
+                                            quote? (map #(str "'" % "'"))))]
+     (if (= 1 (count words))
+       (first words)
+       (str (string/join ", " (butlast words)) " and " (last words))))))

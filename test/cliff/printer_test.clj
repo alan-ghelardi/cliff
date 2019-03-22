@@ -23,4 +23,18 @@
     (are [words result] (= result (printer/sentence words))
       ["x"]         "x"
       ["x" "y"]     "x and y"
-      ["x" "y" "z"] "x, y and z")))
+      ["x" "y" "z"] "x, y and z"
+      ["z" "y" "x"] "z, y and x"))
+
+  (testing "takes any Clojure object"
+    (are [words sentence] (is (= sentence (printer/sentence words)))
+      [:a :b] "a and b"
+      [0 1 2] "0, 1 and 2"))
+
+  (testing "returns a sentence with words sorted alphabetically"
+    (is (= "x, y and z"
+           (printer/sentence ["z" "y" "x"] {:sort? true}))))
+
+  (testing "encloses each word in single quotes"
+    (is (= "'x' and 'y'"
+           (printer/sentence ["x" "y"] {:quote? true})))))

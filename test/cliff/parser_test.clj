@@ -30,6 +30,8 @@
                       :default "."}]
          :flags     {:all?          {:shorthand "a"
                                      :type      :boolean}
+                     :color {:type :keyword
+                             :values #{:always :auto :never}}
                      :sort-by-time? {:shorthand "t"
                                      :type      :boolean}
                      :width         {:shorthand "w"
@@ -110,6 +112,12 @@
       ["-k" "1" "customers.txt"] ["1"]
       ["--key-def" "1" "customers.txt"] ["1"]
       ["-k" "1,1" "customers.txt" "-k" "2,2"] ["1,1" "2,2"]))
+
+  (testing "when the key `:values` is set, ensures that the flag in question
+    always takes one of the valid values"
+    (is  (match? {:status :error
+                  :message "Invalid argument 'none' for long flag 'color'. Valid values are 'always', 'auto' and 'never'."}
+                 (parser/parse ls ["--color" "none"]))))
 
   (testing "parses a single positional argument"
     (is (match? {:status :ok

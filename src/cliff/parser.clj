@@ -81,6 +81,14 @@
     (seq parsing-tokens)           (assoc context :current-value (apply str parsing-tokens) :parsing-tokens [])
     :else                          (assoc context :current-value (first args) :args (next args))))
 
+(defn- validate-enum [{:keys [current-value] :as context} {:keys [values] :as attributes}]
+  (if (values current-value)
+    context
+    (error :invalid-argument
+           (format "Invalid argument '%s' for %s. Valid values are %s." (name current-value)
+                   (printable-token context)
+                   (printer/sentence values {:sort? true :quote? true})))))
+
 (defn- parse-arg-value [context attributes]
   (try
     (update context :current-value #(built-in/parse-value attributes %))
@@ -97,14 +105,15 @@
     `(let ~let-bindings
        ~x)))
 
-(defn- assoc-arg-value [context attributes]
+(defn- assoc-arg-value [context {:keys [values] :as attributes}]
   (letfn [(assoc-parsed-value [{:keys [current-value] :as context} {:keys [name list?]}]
             (if list?
               (update-in context [:result name] (fnil #(conj % current-value) []))
-                (assoc-in context [:result name] current-value)))]
+              (assoc-in context [:result name] current-value)))]
     (fail-fast-> context
-        (parse-arg-value attributes)
-        (assoc-parsed-value attributes))))
+                 (parse-arg-value attributes)
+                 (cond-> values (validate-enum attributes))
+                 (assoc-parsed-value attributes))))
 
 (defn- parse-flag [{:keys [current-token long-flags shorthand-flags] :as context}]
   (if-let [attributes (get long-flags current-token
