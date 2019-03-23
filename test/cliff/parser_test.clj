@@ -44,23 +44,22 @@
                                  :type      :string
                                  :list?     true}}})
 
+(def sum {:arguments [{:name :numbers
+                       :type :double
+                       :list? true}]})
+
 (deftest parse-test
-  (testing "parses the supplied shorthand flags"
+  (testing "parses shorthand flags"
     (is (match? {:status :ok
                  :result {:all? true :sort-by-time? true}}
-                (parser/parse ls ["-a" "-t"]))))
+                (parser/parse ls ["-a" "-t"])))
 
-  (testing "the order in which the flags are supplied doesn't affect the final result"
     (is (match? {:status :ok
                  :result {:all? true :sort-by-time? true}}
-                (parser/parse ls ["-t" "-a"]))))
+                (parser/parse ls ["-t" "-a"]))
+        "the order doesn't affect the final result"))
 
-  (testing "parses the supplied long flags"
-    (is (match? {:status :ok
-                 :result {:all? true :sort-by-time? true}}
-                (parser/parse ls ["--all" "--sort-by-time"]))))
-
-  (testing "some shorthand flags can take values"
+  (testing "parses shorthand flags that take arguments"
     (is (match? {:status :ok
                  :result {:all? true :width 10}}
                 (parser/parse ls ["-a" "-w" "10"])))
@@ -68,7 +67,17 @@
                  :result {:all? true :width 10}}
                 (parser/parse ls ["-a" "-w10"]))))
 
-  (testing "some long flags can take values too"
+  (testing "parses long flags"
+    (is (match? {:status :ok
+                 :result {:all? true :sort-by-time? true}}
+                (parser/parse ls ["--all" "--sort-by-time"])))
+
+    (is (match? {:status :ok
+                 :result {:all? true :sort-by-time? true}}
+                (parser/parse ls ["--sort-by-time" "--all"]))
+        "the order doesn't affect the final result"))
+
+  (testing "parses long flags that take arguments"
     (is (match? {:status :ok
                  :result {:all? true :width 10}}
                 (parser/parse ls ["-a" "--width" "10"])))
@@ -76,24 +85,26 @@
                  :result {:all? true :width 10}}
                 (parser/parse ls ["-a" "--width10"]))))
 
-  (testing "assigns a value to its respective flag by a equals sign"
+  (testing "uses `=` to assign arguments to options"
     (is (match? {:status :ok
-                 :result {:all? true :width 0}}
-                (parser/parse ls ["-a" "--width=0"])))
+                 :result {:all? true :width 10}}
+                (parser/parse ls ["-a" "--width=10"])))
+
     (is (match? {:status :ok
-                 :result {:all? true :width 0}}
-                (parser/parse ls ["-a" "--width=" "0"]))))
-  (testing "assigns a value to its respective flag by a equals sign"
+                 :result {:all? true :width 10}}
+                (parser/parse ls ["-a" "--width=" "10"])))
+
     (is (match? {:status :ok
-                 :result {:all? true :width 0}}
-                (parser/parse ls ["-a" "--width=0"]))))
+                 :result {:all? true :width 10}}
+                (parser/parse ls ["-a" "-w=10"]))))
 
   (testing "shorthand flags can be grouped together"
     (is (match? {:status :ok
                  :result {:all? true :sort-by-time? true}}
                 (parser/parse ls ["-at"]))))
 
-  (testing "combines multiple shorthand flags together and assigns a value to the last one"
+  (testing "groups multiple shorthand flags together and assign an argument to
+  the last one"
     (is (match? {:status :ok
                  :result {:all? true :sort-by-time? true :width 10}}
                 (parser/parse ls ["-atw" "10"])))
@@ -104,7 +115,7 @@
                  :result {:all? true :sort-by-time? true :width 10}}
                 (parser/parse ls ["-atw=10"]))))
 
-  (testing "repeats a flag declared as a list"
+  (testing "repeats a flag that accept a list of arguments"
     (are [args key-def] (match? {:status :ok
                                  :result {:file-name "customers.txt"
                                           :key-def key-def}} (parser/parse sort args))
@@ -123,12 +134,16 @@
                   :message "Invalid argument 'none' for long flag 'color'. Valid values are 'always', 'auto' and 'never'."}
                  (parser/parse ls ["--color" "none"]))))
 
-  (testing "parses a single positional argument"
+  (testing "parses positional arguments"
     (is (match? {:status :ok
                  :result {:file-name "Documents"}}
-                (parser/parse ls ["Documents"]))))
+                (parser/parse ls ["Documents"])))
 
-  (testing "parses a positional argument along with some flags"
+    (is (match? {:status :ok
+                 :result {:source "customers.txt" :target "../Documents"}}
+                (parser/parse cp ["customers.txt" "../Documents"]))))
+
+  (testing "parses arguments and flags"
     (is (match? {:status :ok
                  :result {:file-name     "Documents"
                           :all?          true
@@ -153,7 +168,7 @@
                 (parser/parse ls ["-at" "Documents" "-w" "15"]))
         "the argument between the flags"))
 
-  (testing "parses arguments as lists"
+  (testing "parses arguments that should be processed as list of values"
     (are [args result] (match? {:status :ok
                                 :result {:image "bash"
                                          :args result}}
@@ -162,14 +177,15 @@
       ["--rm" "bash" "ls" "-la"]        ["ls" "-la"]
       ["--rm" "bash" "ls" "-la" "/bin"] ["ls" "-la" "/bin"]))
 
-  (testing "detects and returns parsing errors"
+  (testing "parsing errors"
     (are [program args reason message] (match? {:status :error
                                                 :reason reason
                                                 :message message} (parser/parse program args))
       ls ["-lt"]                      :unknown-token     "Unknown shorthand flag 'l' in -lt"
       ls ["-at" "--sort-by-name" "."] :unknown-token     "Unknown long flag '--sort-by-name'"
       cp ["-r" "folder" "../" "foo"]  :unknown-token     "Unknown argument 'foo'"
-      ls ["-w" "hello"]               :unparseable-value "Unparseable value 'hello' for shorthand flag 'w' in -w"))
+      ls ["-w" "hello"]               :unparseable-value "Unparseable value for shorthand flag 'w' in -w. Expected 'int', but got 'hello'"
+      sum ["0" "abc"] :unparseable-value "Unparseable value for argument 'numbers'. Expected 'double', but got 'abc'"))
 
   (testing "default values for arguments and flags"
     (are [args result] (match? {:status :ok
@@ -180,7 +196,7 @@
       ["~/Documents"] {:file-name "~/Documents" :width 0}
       ["-w" "5"]      {:file-name "." :width 5}))
 
-  (testing "returns an error when required arguments are missing"
+  (testing "missing mandatory arguments"
     (are [program args message] (match? {:status :error
                                          :reason :missing-required-arguments
                                          :message message}

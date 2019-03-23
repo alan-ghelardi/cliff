@@ -18,8 +18,12 @@
 (defn- unknown-token [context]
   (error :unknown-token (str "Unknown " (printable-token context))))
 
-(defn- unparseable-value [{:keys [current-value] :as context}]
-  (error :unparseable-value (format "Unparseable value '%s' for %s" current-value (printable-token context))))
+(defn- unparseable-value [{:keys [current-value token-type] :as context} {:keys [name type]}]
+  (error :unparseable-value (format "Unparseable value for %s. Expected '%s', but got '%s'"
+                                    (if (= :argument token-type)
+                                      (format "argument '%s'" (printer/keyword->arg-str name))
+                                      (printable-token context))
+                                    (clojure.core/name type) current-value)))
 
 (defn- apply-defaults [{:keys [arguments long-flags] :as context}]
   (reduce (fn [context [_ {:keys [name default]}]]
@@ -93,7 +97,7 @@
   (try
     (update context :current-value #(built-in/parse-value attributes %))
     (catch Exception e
-      (unparseable-value context))))
+      (unparseable-value context attributes))))
 
 (defmacro fail-fast-> [context & forms]
   (let [c            (gensym)
@@ -105,7 +109,7 @@
     `(let ~let-bindings
        ~c)))
 
-(defn- assoc-arg-value [context {:keys [values] :as attributes}]
+(defn- assoc-arg-value* [context {:keys [values] :as attributes}]
   (letfn [(assoc-parsed-value [{:keys [current-value] :as context} {:keys [name list?]}]
             (if list?
               (update-in context [:result name] (fnil #(conj % current-value) []))
@@ -114,6 +118,17 @@
                  (parse-arg-value attributes)
                  (cond-> values (validate-enum attributes))
                  (assoc-parsed-value attributes))))
+
+(defn- assoc-arg-value [context attributes]
+  (letfn [(continue? [{:keys [status args token-type]} {:keys [list?]}]
+            (and (not= :error status)
+                 (seq args)
+                 (= token-type :argument)
+                 list?))]
+    (loop [context (assoc-arg-value* context attributes)]
+      (if-not (continue? context attributes)
+        context
+        (recur (assoc-arg-value* (next-value context attributes) attributes))))))
 
 (defn- parse-flag [{:keys [current-token long-flags shorthand-flags] :as context}]
   (if-let [attributes (get long-flags current-token
