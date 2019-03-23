@@ -4,6 +4,9 @@
             [clojure.test :refer :all]
             [matcher-combinators.test]))
 
+(def aws {:flags {:region {:type :string}
+                  :debug? {:type :boolean}}})
+
 (def cp {:arguments [{:name      :source
                       :type      :string
                       :required? true}
@@ -177,6 +180,16 @@
       ["--rm" "bash" "ls" "-la"]        ["ls" "-la"]
       ["--rm" "bash" "ls" "-la" "/bin"] ["ls" "-la" "/bin"]))
 
+  (testing "when the option `:subcommands?` is set, interrupts the parsing
+  process at the first unrecognized argument and returns the command along with
+  remaining args"
+    (is (match? {:status :ok
+                 :command "s3"
+                 :args ["ls" "s3://my-bucket/"]
+                 :result {:region "us-east-1"
+                          :debug? true}}
+                (parser/parse aws ["--region" "us-east-1" "--debug" "s3" "ls" "s3://my-bucket/"] {:subcommands? true}))))
+
   (testing "parsing errors"
     (are [program args reason message] (match? {:status :error
                                                 :reason reason
@@ -203,5 +216,5 @@
                                         (parser/parse program args))
       cp              []                         "The following required arguments are missing: source and target"
       cp              ["-r" "folder"]            "The following required arguments are missing: target"
-      get-role-policy []                         "The following required arguments are missing: --role-name and --policy-name"
+      get-role-policy []                         "The following required arguments are missing: --policy-name and --role-name"
       get-role-policy ["--role-name" "foo-role"] "The following required arguments are missing: --policy-name")))

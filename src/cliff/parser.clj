@@ -3,10 +3,16 @@
             [cliff.printer :as printer]
             [clojure.string :as string]))
 
+(defn- interrupt [context]
+  (assoc context ::interrupt? true))
+
+(defn- interrupt? [context]
+  (::interrupt? context))
+
 (defn- error [reason message]
-  {:status  :error
-   :reason  reason
-   :message message})
+  (interrupt {:status  :error
+              :reason  reason
+              :message message}))
 
 (defn- printable-token [{:keys [current-token raw-token token-type]}]
   (apply str (flatten [(string/replace (name token-type) #"-" " ")
@@ -40,7 +46,7 @@
         errors              (into (reduce (partial find-missing-values printer/long-flag) [] long-flags)
                                   (reduce (partial find-missing-values printer/argument) [] arguments))]
     (if (seq errors)
-      (error :missing-required-arguments (str "The following required arguments are missing: " (printer/sentence errors)))
+      (error :missing-required-arguments (str "The following required arguments are missing: " (printer/sentence errors {:sort? true})))
       context)))
 
 (defmulti tokenize :token-type)
@@ -99,10 +105,10 @@
     (catch Exception e
       (unparseable-value context attributes))))
 
-(defmacro fail-fast-> [context & forms]
+(defmacro interrupting-> [context & forms]
   (let [c            (gensym)
         let-bindings (reduce (fn [bindings form]
-                               (into bindings `[~c (if (= :error (:status ~c))
+                               (into bindings `[~c (if (#'interrupt? ~c)
                                                      ~c
                                                      (-> ~c ~form))]))
                              [c context] forms)]
@@ -114,14 +120,14 @@
             (if list?
               (update-in context [:result name] (fnil #(conj % current-value) []))
               (assoc-in context [:result name] current-value)))]
-    (fail-fast-> context
-                 (parse-arg-value attributes)
-                 (cond-> values (validate-enum attributes))
-                 (assoc-parsed-value attributes))))
+    (interrupting-> context
+                    (parse-arg-value attributes)
+                    (cond-> values (validate-enum attributes))
+                    (assoc-parsed-value attributes))))
 
 (defn- assoc-arg-value [context attributes]
-  (letfn [(continue? [{:keys [status args token-type]} {:keys [list?]}]
-            (and (not= :error status)
+  (letfn [(continue? [{:keys [args token-type] :as context} {:keys [list?]}]
+            (and (not (interrupt? context))
                  (seq args)
                  (= token-type :argument)
                  list?))]
@@ -137,25 +143,31 @@
     (unknown-token context)))
 
 (defn- parse-shorthand-flags [context]
-  (loop [{:keys [status parsing-tokens] :as context}
+  (loop [{:keys [parsing-tokens] :as context}
          (parse-flag context)]
-    (if (or (= status :error)
+    (if (or (interrupt? context)
             (not (seq parsing-tokens)))
       context
       (recur (parse-flag (next-token context))))))
 
-(defn- parse-positional-argument [{:keys [current-arg-position current-token] :as context
-                                   :or   {current-arg-position 0}}]
+(defn- unknown-argument [{:keys [current-token subcommands?] :as context}]
+  (if-not subcommands?
+    (unknown-token context)
+    (interrupt (assoc context :status :ok
+                      :command current-token))))
+
+(defn- parse-argument [{:keys [current-arg-position current-token] :as context
+                        :or   {current-arg-position 0}}]
   (if-let [attributes (get-in context [:arguments current-arg-position])]
     (update (assoc-arg-value (assoc context :current-value current-token) attributes)
             :current-arg-position (fnil inc 0))
-    (unknown-token context)))
+    (unknown-argument context)))
 
 (defn- parse-token [{:keys [token-type] :as context}]
   (case token-type
     :shorthand-flag (parse-shorthand-flags context)
     :long-flag      (parse-flag context)
-    :argument       (parse-positional-argument context)))
+    :argument       (parse-argument context)))
 
 (def shorthand-flag? (partial re-find #"^-[^\-]+"))
 
@@ -173,17 +185,16 @@
         next-token
         parse-token)))
 
-(defn- continue-parsing? [{:keys [status args]}]
-  (and (not= status :error)
-       (seq args)))
-
 (defn- parse-args [context]
-  (loop [context context]
-    (if-not (continue-parsing? context)
-      context
-      (recur (parse-next-arg context)))))
+  (letfn [(continue? [{:keys [args] :as context}]
+            (and (not (interrupt? context))
+                 (seq args)))]
+    (loop [context context]
+      (if-not (continue? context)
+        context
+        (recur (parse-next-arg context))))))
 
-(defn parser-context [{:keys [arguments flags]} args]
+(defn parser-context [{:keys [arguments flags]} args options]
   (letfn [(get-arguments []
             (->> arguments
                  (map-indexed (partial vector))
@@ -197,14 +208,18 @@
                                         (assoc-in [:long-flags long-flag] flag-attrs)
                                         (cond-> shorthand-flag                                         (assoc-in [:shorthand-flags shorthand-flag] flag-attrs))))
                                   {})))]
-    (assoc (get-flags)
-           :arguments (get-arguments)
-           :args args)))
+    (merge options
+           (assoc (get-flags)
+                  :arguments (get-arguments)
+                  :args args))))
 
-(defn parse [program args]
-  (let [output (fail-fast-> (parser-context program args)
-                            parse-args
-                            apply-defaults
-                            check-missing-arguments
-                            (assoc :status :ok))]
-    (select-keys output [:status :reason :message :result])))
+(defn parse
+  ([program args] (parse program args {}))
+  ([program args options]
+   (let [output (interrupting-> program
+                                (parser-context args options)
+                                parse-args
+                                apply-defaults
+                                check-missing-arguments
+                                (assoc :status :ok))]
+     (select-keys output [:status :reason :message :args :command :result]))))
