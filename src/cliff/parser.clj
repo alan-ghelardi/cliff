@@ -202,12 +202,9 @@
            :args args)))
 
 (defn parse [program args]
-  (let [context                     (parser-context program args)
-        {:keys [status] :as output} (parse-args context)]
-    (if (= :error status)
-      output
-      (-> output
-          (assoc :status :ok)
-          apply-defaults
-          check-missing-arguments
-          (select-keys [:status :reason :message :result])))))
+  (let [output (fail-fast-> (parser-context program args)
+                            parse-args
+                            apply-defaults
+                            check-missing-arguments
+                            (assoc :status :ok))]
+    (select-keys output [:status :reason :message :result])))
