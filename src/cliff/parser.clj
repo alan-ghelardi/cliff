@@ -1,6 +1,6 @@
 (ns cliff.parser
   (:require [cliff.built-in :as built-in]
-            [cliff.printer :as printer]
+            [cliff.help :as help]
             [clojure.string :as string]))
 
 (defn- interrupt [context]
@@ -27,7 +27,7 @@
 (defn- unparseable-value [{:keys [current-value token-type] :as context} {:keys [name type]}]
   (error :unparseable-value (format "Unparseable value for %s. Expected '%s', but got '%s'"
                                     (if (= :argument token-type)
-                                      (format "argument '%s'" (printer/keyword->arg-str name))
+                                      (format "argument '%s'" (help/argument-name name))
                                       (printable-token context))
                                     (clojure.core/name type) current-value)))
 
@@ -43,10 +43,10 @@
                               (if (and required? (not (get result name)))
                                 (conj errors (str-fn name))
                                 errors))
-        errors              (into (reduce (partial find-missing-values printer/long-flag) [] long-flags)
-                                  (reduce (partial find-missing-values printer/argument) [] arguments))]
+        errors              (into (reduce (partial find-missing-values help/long-flag) [] long-flags)
+                                  (reduce (partial find-missing-values help/argument-name) [] arguments))]
     (if (seq errors)
-      (error :missing-required-arguments (str "The following required arguments are missing: " (printer/sentence errors {:sort? true})))
+      (error :missing-required-arguments (str "The following required arguments are missing: " (help/sentence errors {:sort? true})))
       context)))
 
 (defmulti tokenize :token-type)
@@ -97,7 +97,7 @@
     (error :invalid-argument
            (format "Invalid argument '%s' for %s. Valid values are %s." (name current-value)
                    (printable-token context)
-                   (printer/sentence values {:sort? true :quote? true})))))
+                   (help/sentence values {:sort? true :quote? true})))))
 
 (defn- parse-arg-value [context attributes]
   (try
@@ -202,7 +202,7 @@
           (get-flags []
                      (->> flags
                           (map (fn [[name {:keys [shorthand] :as flag}]]
-                                 [(printer/keyword->arg-str name) shorthand (assoc flag :name name)]))
+                                 [(help/argument-name name) shorthand (assoc flag :name name)]))
                           (reduce (fn [result [long-flag shorthand-flag flag-attrs]]
                                     (-> result
                                         (assoc-in [:long-flags long-flag] flag-attrs)

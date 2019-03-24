@@ -1,55 +1,10 @@
 (ns cliff.parser-test
   (:refer-clojure :exclude [sort])
-  (:require [cliff.parser :as parser]
-            [clojure.test :refer :all]
-            [matcher-combinators.test]))
-
-(def aws {:flags {:region {:type :string}
-                  :debug? {:type :boolean}}})
-
-(def cp {:arguments [{:name      :source
-                      :type      :string
-                      :required? true}
-                     {:name      :target
-                      :type      :string
-                      :required? true}]
-         :flags     {:recursive? {:type      :boolean
-                                  :shorthand "r"}}})
-
-(def docker-run {:arguments [{:name :image
-                              :type :string}
-                             {:name  :args
-                              :type  :string
-                              :list? true}]
-                 :flags     {:rm? {:type :boolean}}})
-
-(def get-role-policy {:flags {:role-name   {:type      :string
-                                            :required? true}
-                              :policy-name {:type      :string
-                                            :required? true}}})
-
-(def ls {:arguments [{:name    :file-name
-                      :type    :string
-                      :default "."}]
-         :flags     {:all?          {:shorthand "a"
-                                     :type      :boolean}
-                     :color         {:type   :keyword
-                                     :values #{:always :auto :never}}
-                     :sort-by-time? {:shorthand "t"
-                                     :type      :boolean}
-                     :width         {:shorthand "w"
-                                     :type      :int
-                                     :default   0}}})
-
-(def sort {:arguments [{:name :file-name
-                        :type :string}]
-           :flags     {:key-def {:shorthand "k"
-                                 :type      :string
-                                 :list?     true}}})
-
-(def sum {:arguments [{:name :numbers
-                       :type :double
-                       :list? true}]})
+  (:require [cliff.command-examples
+             :refer
+             [aws cp docker-run get-role-policy ls sort sum]]
+            [cliff.parser :as parser]
+            [clojure.test :refer :all]))
 
 (deftest parse-test
   (testing "parses shorthand flags"
@@ -183,22 +138,22 @@
   (testing "when the option `:subcommands?` is set, interrupts the parsing
   process at the first unrecognized argument and returns the command along with
   remaining args"
-    (is (match? {:status :ok
+    (is (match? {:status  :ok
                  :command "s3"
-                 :args ["ls" "s3://my-bucket/"]
-                 :result {:region "us-east-1"
-                          :debug? true}}
+                 :args    ["ls" "s3://my-bucket/"]
+                 :result  {:region "us-east-1"
+                           :debug? true}}
                 (parser/parse aws ["--region" "us-east-1" "--debug" "s3" "ls" "s3://my-bucket/"] {:subcommands? true}))))
 
   (testing "parsing errors"
     (are [program args reason message] (match? {:status :error
                                                 :reason reason
                                                 :message message} (parser/parse program args))
-      ls ["-lt"]                      :unknown-token     "Unknown shorthand flag 'l' in -lt"
-      ls ["-at" "--sort-by-name" "."] :unknown-token     "Unknown long flag '--sort-by-name'"
-      cp ["-r" "folder" "../" "foo"]  :unknown-token     "Unknown argument 'foo'"
-      ls ["-w" "hello"]               :unparseable-value "Unparseable value for shorthand flag 'w' in -w. Expected 'int', but got 'hello'"
-      sum ["0" "abc"] :unparseable-value "Unparseable value for argument 'numbers'. Expected 'double', but got 'abc'"))
+      ls  ["-lt"]                      :unknown-token     "Unknown shorthand flag 'l' in -lt"
+      ls  ["-at" "--sort-by-name" "."] :unknown-token     "Unknown long flag '--sort-by-name'"
+      cp  ["-r" "folder" "../" "foo"]  :unknown-token     "Unknown argument 'foo'"
+      ls  ["-w" "hello"]               :unparseable-value "Unparseable value for shorthand flag 'w' in -w. Expected 'int', but got 'hello'"
+      sum ["0" "abc"]                  :unparseable-value "Unparseable value for argument 'numbers'. Expected 'double', but got 'abc'"))
 
   (testing "default values for arguments and flags"
     (are [args result] (match? {:status :ok
