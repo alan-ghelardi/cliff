@@ -1,6 +1,6 @@
 (ns cliff.help-test
   (:require [cliff.help :as help]
-            [cliff.command-examples :refer [ls get-role-policy]]
+            [cliff.command-examples :refer [docker-run ls get-role-policy]]
             [clojure.test :refer :all]))
 
 (deftest argument-name-test
