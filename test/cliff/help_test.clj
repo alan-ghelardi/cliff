@@ -1,6 +1,6 @@
 (ns cliff.help-test
-  (:require [cliff.help :as help]
-            [cliff.command-examples :refer [docker-run ls get-role-policy]]
+  (:require [cliff.command-examples :refer [cp get-role-policy ls docker sum]]
+            [cliff.help :as help]
             [clojure.test :refer :all]))
 
 (deftest argument-name-test
@@ -61,3 +61,12 @@
     (is (true?
          (nil? (help/flags-usage nil)))
         "returns an empty seq when there are no flags")))
+
+(deftest synopsis-test
+  (testing "returns the synopsis for the command in question"
+    (are [path command result] (= result (help/synopsis (assoc command :path path)))
+            ["aws" "iam" "get-role-policy"] get-role-policy "aws iam get-role-policy <--policy-name=POLICY-NAME> <--role-name=ROLE-NAME>"
+            ["cp"] cp "cp [OPTIONS] <SOURCE> <TARGET>"
+            ["docker"] docker "docker <COMMAND>"
+      ["ls"] ls "ls [OPTIONS] [FILE-NAME]"
+      ["sum"] sum "sum [& NUMBERS]")))

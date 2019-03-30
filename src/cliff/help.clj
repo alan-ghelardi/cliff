@@ -77,17 +77,18 @@
        arguments))
 
 (defn- list-flags [flags]
-  (letfn [(required-flag [flag-name {:keys [required?] :as flag-spec}]
-            (show-requiredness (str (long-flag flag-name) " " (printable-arg-value flag-name flag-spec)) required?))]
-    (reduce (fn [[head :as result] [flag-name {:keys [required?] :as flag-spec}]]
-              (cond
-                required?               (conj result (required-flag flag-name flag-spec))
-                (not= head "[OPTIONS]") (cons "[OPTIONS]" result)
-                :else                   result))
-            [] flags)))
+  (letfn [(required-flag [flag-name flag-spec]
+            (show-requiredness (str (long-flag flag-name) "=" (printable-arg-value flag-name flag-spec)) true))]
+    (sort (reduce (fn [[head :as result] [flag-name {:keys [required?] :as flag-spec}]]
+                    (cond
+                      required?               (conj result (required-flag flag-name flag-spec))
+                      (not= head "[OPTIONS]") (cons "[OPTIONS]" result)
+                      :else                   result))
+                  [] flags))))
 
-(defn command-overview [{:keys [path arguments flags]}]
+(defn synopsis [{:keys [path commands arguments flags]}]
   (as-> (list-flags flags) result
     (into path result)
     (into result (list-arguments arguments))
+    (cond-> result commands (conj "<COMMAND>"))
     (string/join " " result)))

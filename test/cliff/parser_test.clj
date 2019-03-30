@@ -4,7 +4,8 @@
              :refer
              [aws cp docker-run get-role-policy ls sort sum]]
             [cliff.parser :as parser]
-            [clojure.test :refer :all]))
+            [clojure.test :refer :all]
+            [matcher-combinators.test]))
 
 (deftest parse-test
   (testing "parses shorthand flags"
