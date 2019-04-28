@@ -57,10 +57,10 @@
      (description (assoc arg-spec :value-name value-name))]))
 
 (defn flags-usage [flags]
-  (when flags
-    (cons "Options:"
-          (sort-by second
-                   (map flag-usage flags)))))
+  (some->> flags
+           (map flag-usage)
+           (sort-by second)
+           (cons "Options:")))
 
 (defn- requiredness [arg required?]
   (if required?
@@ -98,4 +98,4 @@
            (map (fn [[command-name {:keys [help]}]]
               [(name command-name) help]))
        (sort-by first)
-       (into ["Commands:"])))
+       (cons "Commands:")))
