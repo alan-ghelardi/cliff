@@ -93,9 +93,15 @@
     (cond-> result commands (conj "<COMMAND>"))
     (string/join " " result)))
 
-(defn available-commands [{:keys [commands]}]
+(defn available-commands [commands]
   (some->> commands
            (map (fn [[command-name {:keys [help]}]]
-              [(name command-name) help]))
-       (sort-by first)
-       (cons "Commands:")))
+                  [(name command-name) help]))
+           (sort-by first)
+           (cons "Commands:")))
+
+(defn usage [{:keys [commands flags] :as program}]
+  ["Usage:"
+   (synopsis program)
+   (flags-usage flags)
+   (available-commands commands)])

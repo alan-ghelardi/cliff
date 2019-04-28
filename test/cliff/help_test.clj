@@ -76,7 +76,7 @@
     (is (= ["Commands:"
             ["ps" "List containers"]
             ["run" "Run a command in a new container"]]
-           (help/available-commands docker))))
+           (help/available-commands (:commands docker)))))
 
   (testing "returns nil when there are no commands in the app"
-    (is (nil? (help/available-commands ls)))))
+    (is (nil? (help/available-commands (:commands ls))))))
