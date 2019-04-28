@@ -45,14 +45,14 @@
 
 (deftest flags-usage-test
   (testing "returns usage information for a set of flags"
-    (is (= ["Options"
+    (is (= ["Options:"
             ["-a," "--all" "" "" "do not ignore entries starting with ."]
             ["" "--color" "WHEN" "keyword" "colorize the output. WHEN can be 'always', 'auto' and 'never' (default auto)"]
             ["-t," "--sort-by-time" "" "" "sort by modification time, newest first"]
             ["-w," "--width" "COLS" "int" "set output width to COLS (default 0)"]]
            (help/flags-usage (:flags ls))))
 
-    (is (= ["Options"
+    (is (= ["Options:"
             ["" "--policy-name" "POLICY-NAME" "string" "name of the desired policy"]
             ["" "--role-name" "ROLE-NAME" "string" "name of the desired role"]]
            (help/flags-usage (:flags get-role-policy)))
@@ -65,8 +65,18 @@
 (deftest synopsis-test
   (testing "returns the synopsis for the command in question"
     (are [path command result] (= result (help/synopsis (assoc command :path path)))
-            ["aws" "iam" "get-role-policy"] get-role-policy "aws iam get-role-policy <--policy-name=POLICY-NAME> <--role-name=ROLE-NAME>"
-            ["cp"] cp "cp [OPTIONS] <SOURCE> <TARGET>"
-            ["docker"] docker "docker <COMMAND>"
-      ["ls"] ls "ls [OPTIONS] [FILE-NAME]"
-      ["sum"] sum "sum [& NUMBERS]")))
+      ["aws" "iam" "get-role-policy"] get-role-policy "aws iam get-role-policy <--policy-name=POLICY-NAME> <--role-name=ROLE-NAME>"
+      ["cp"]                          cp              "cp [OPTIONS] <SOURCE> <TARGET>"
+      ["docker"]                      docker          "docker <COMMAND>"
+      ["ls"]                                ls              "ls [OPTIONS] [FILE-NAME]"
+      ["sum"]                               sum             "sum [& NUMBERS]")))
+
+(deftest available-commands-test
+  (testing "returns information about the available commands"
+    (is (= ["Commands:"
+            ["ps" "List containers"]
+            ["run" "Run a command in a new container"]]
+           (help/available-commands docker))))
+
+  (testing "returns nil when there are no commands in the app"
+    (is (nil? (help/available-commands ls)))))

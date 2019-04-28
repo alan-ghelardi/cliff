@@ -27,7 +27,7 @@
        (first words)
        (str (string/join ", " (butlast words)) " and " (last words))))))
 
-(defn- describe [{:keys [default help value-name values]}]
+(defn- description [{:keys [default help value-name values]}]
   (str help
        (when values
          (format ". %s can be %s" value-name (sentence values {:sort? true :quote? true})))
@@ -54,15 +54,15 @@
                    (if list?
                      (str "list[" (name type) "]")
                      (name type)))
-     (describe (assoc arg-spec :value-name value-name))]))
+     (description (assoc arg-spec :value-name value-name))]))
 
 (defn flags-usage [flags]
   (when flags
-    (cons "Options"
+    (cons "Options:"
           (sort-by second
                    (map flag-usage flags)))))
 
-(defn- show-requiredness [arg required?]
+(defn- requiredness [arg required?]
   (if required?
     (str "<" arg ">")
     (str "[" arg "]")))
@@ -70,15 +70,15 @@
 (defn- list-arguments [arguments]
   (map (fn [{:keys [name list? required?] :as arg-spec}]
          (let [arg-name (string/upper-case (argument-name name))]
-           (show-requiredness (if list?
-                                (str "& " arg-name)
-                                arg-name)
-                              required?)))
+           (requiredness (if list?
+                           (str "& " arg-name)
+                           arg-name)
+                         required?)))
        arguments))
 
 (defn- list-flags [flags]
   (letfn [(required-flag [flag-name flag-spec]
-            (show-requiredness (str (long-flag flag-name) "=" (printable-arg-value flag-name flag-spec)) true))]
+            (requiredness (str (long-flag flag-name) "=" (printable-arg-value flag-name flag-spec)) true))]
     (sort (reduce (fn [[head :as result] [flag-name {:keys [required?] :as flag-spec}]]
                     (cond
                       required?               (conj result (required-flag flag-name flag-spec))
@@ -92,3 +92,10 @@
     (into result (list-arguments arguments))
     (cond-> result commands (conj "<COMMAND>"))
     (string/join " " result)))
+
+(defn available-commands [{:keys [commands]}]
+  (some->> commands
+           (map (fn [[command-name {:keys [help]}]]
+              [(name command-name) help]))
+       (sort-by first)
+       (into ["Commands:"])))

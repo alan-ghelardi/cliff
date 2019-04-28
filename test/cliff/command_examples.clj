@@ -12,18 +12,21 @@
          :flags     {:recursive? {:type      :boolean
                                   :shorthand "r"}}})
 
-(def docker-ps {:flags {:all? {:shorthand "a"
+(def docker-ps {:help  "List containers"
+                :flags {:all? {:shorthand "a"
                                :type      :boolean}}})
 
-(def docker-run {:arguments [{:name :image
+(def docker-run {:help      "Run a command in a new container"
+                 :arguments [{:name :image
                               :type :string}
                              {:name  :args
                               :type  :string
                               :list? true}]
                  :flags     {:rm? {:type :boolean}}})
 
-(def docker {:commands {:ps  docker-ps
-                        :run docker-run}})
+(def docker {:commands
+             {:ps  docker-ps
+              :run docker-run}})
 
 (def get-role-policy {:flags {:role-name   {:help      "name of the desired role"
                                             :type      :string
