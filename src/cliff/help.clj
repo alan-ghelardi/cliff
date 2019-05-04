@@ -101,7 +101,8 @@
            (cons "Commands:")))
 
 (defn usage [{:keys [commands flags] :as program}]
-  ["Usage:"
-   (synopsis program)
-   (flags-usage flags)
-   (available-commands commands)])
+  (remove nil?
+          ["Usage:"
+           (synopsis program)
+           (flags-usage flags)
+           (available-commands commands)]))

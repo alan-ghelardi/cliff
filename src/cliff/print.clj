@@ -65,8 +65,19 @@
           remaining-width (- (term-width) padding-left)]
       (str other-cells whitespace (line-wrap  last-cell remaining-width padding-left)))))
 
-(defn print-table [table]
-  (->> table
+(defn print-table [[title & cells]]
+  (println title)
+  (->> cells
        left-justify
        (map join-cells)
        (run! clojure.core/println)))
+
+(defn print-help
+  "Given a data structure returned by `cliff.help/usage`, prints the
+  help documentation for the command in question in the standard
+  output."
+  [help]
+  (run! #(if (seq? %)
+          (print-table %)
+          (println %))
+        help))
