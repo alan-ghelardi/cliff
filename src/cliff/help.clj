@@ -100,8 +100,12 @@
            (sort-by first)
            (cons "Commands:")))
 
-(defn usage [{:keys [commands flags] :as program}]
-  ["Usage:"
-   (synopsis program)
-   (flags-usage flags)
-   (available-commands commands)])
+(defn usage [{:keys [commands flags help] :as program}]
+  (remove nil?
+          [["Usage:"
+            (synopsis program)]
+           (if (string? help)
+             [help]
+             help)
+           (flags-usage flags)
+           (available-commands commands)]))

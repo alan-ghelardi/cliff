@@ -24,7 +24,13 @@
                               :list? true}]
                  :flags     {:rm? {:type :boolean}}})
 
-(def docker {:commands
+(def docker {:help  "A self-sufficient runtime for containers."
+             :flags {:config {:help "Location of client config files"
+                              :type :string}
+                     :debug  {:help      "Enable debug mode"
+                              :shorthand "d"
+                              :type      :boolean}}
+             :commands
              {:ps  docker-ps
               :run docker-run}})
 
@@ -35,7 +41,9 @@
                                             :type      :string
                                             :required? true}}})
 
-(def ls {:arguments [{:name    :file-name
+(def ls {:help      ["List information about the FILEs (the current directory by default)."
+                     "Sort entries alphabetically by default."]
+         :arguments [{:name    :file-name
                       :type    :string
                       :default "."}]
          :flags     {:all?          {:help      "do not ignore entries starting with ."

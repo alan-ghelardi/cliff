@@ -1,5 +1,5 @@
 (ns cliff.help-test
-  (:require [cliff.command-examples :refer [cp get-role-policy ls docker sum]]
+  (:require [cliff.command-examples :refer [cp docker get-role-policy ls sum]]
             [cliff.help :as help]
             [clojure.test :refer :all]))
 
@@ -67,9 +67,9 @@
     (are [path command result] (= result (help/synopsis (assoc command :path path)))
       ["aws" "iam" "get-role-policy"] get-role-policy "aws iam get-role-policy <--policy-name=POLICY-NAME> <--role-name=ROLE-NAME>"
       ["cp"]                          cp              "cp [OPTIONS] <SOURCE> <TARGET>"
-      ["docker"]                      docker          "docker <COMMAND>"
-      ["ls"]                                ls              "ls [OPTIONS] [FILE-NAME]"
-      ["sum"]                               sum             "sum [& NUMBERS]")))
+      ["docker"]                      docker          "docker [OPTIONS] <COMMAND>"
+      ["ls"]                          ls              "ls [OPTIONS] [FILE-NAME]"
+      ["sum"]                         sum             "sum [& NUMBERS]")))
 
 (deftest available-commands-test
   (testing "returns information about the available commands"
@@ -80,3 +80,33 @@
 
   (testing "returns nil when there are no commands in the app"
     (is (nil? (help/available-commands (:commands ls))))))
+
+(deftest usage-test
+  (testing "returns a data structure that explains the usage of the command in
+  question"
+    (is (= [["Usage:"
+             "ls [OPTIONS] [FILE-NAME]"]
+            ["List information about the FILEs (the current directory by default)."
+             "Sort entries alphabetically by default."]
+            ["Options:"
+             ["-a," "--all" "" "" "do not ignore entries starting with ."]
+             [""
+              "--color"
+              "WHEN"
+              "keyword"
+              "colorize the output. WHEN can be 'always', 'auto' and 'never' (default auto)"]
+             ["-t," "--sort-by-time" "" "" "sort by modification time, newest first"]
+             ["-w," "--width" "COLS" "int" "set output width to COLS (default 0)"]]]
+           (help/usage (assoc ls :path ["ls"])))))
+
+  (testing "returns subcommands"
+    (is (= [["Usage:"
+             "docker [OPTIONS] <COMMAND>"]
+            ["A self-sufficient runtime for containers."]
+            ["Options:"
+             ["" "--config" "CONFIG" "string" "Location of client config files"]
+             ["-d," "--debug" "" "" "Enable debug mode"]]
+            ["Commands:"
+             ["ps" "List containers"]
+             ["run" "Run a command in a new container"]]]
+         (help/usage (assoc docker :path ["docker"]))))))
